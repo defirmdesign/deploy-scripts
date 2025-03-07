@@ -20,30 +20,33 @@ if [ -f "$KEY_FILE" ]; then
     rm -f "$KEY_FILE" "${KEY_FILE}.pub"
 fi
 
-# Remove existing SSH config entries for this key
-if [ -f "$SSH_CONFIG" ] && grep -q "IdentityFile $KEY_FILE" "$SSH_CONFIG"; then
-    echo "Removing existing SSH config entries for $KEY_FILE..."
 
-    TEMP_CONFIG=$(mktemp)
-    awk -v key="$KEY_FILE" '
-    /IdentityFile/ && index($2, key) {
-        skip_next = 0
-        in_block = 1
-        next
-    }
-    /^Host / && in_block {
-        in_block = 0
-        skip_next = 1
-        next
-    }
-    skip_next {
-        skip_next = 0
-        next
-    }
-    { print }
-    ' "$SSH_CONFIG" > "$TEMP_CONFIG"
-    mv "$TEMP_CONFIG" "$SSH_CONFIG"
-    chmod 600 "$SSH_CONFIG"
+# Remove existing SSH config entries for this key
+if [ -f "$SSH_CONFIG" ]; then
+    if grep -q "IdentityFile $KEY_FILE" "$SSH_CONFIG"; then
+        echo "Removing existing SSH config entries for $KEY_FILE..."
+
+        TEMP_CONFIG=$(mktemp)
+        awk -v key="$KEY_FILE" '
+        /IdentityFile/ && index($2, key) {
+            skip_next = 0
+            in_block = 1
+            next
+        }
+        /^Host / && in_block {
+            in_block = 0
+            skip_next = 1
+            next
+        }
+        skip_next {
+            skip_next = 0
+            next
+        }
+        { print }
+        ' "$SSH_CONFIG" > "$TEMP_CONFIG"
+        mv "$TEMP_CONFIG" "$SSH_CONFIG"
+        chmod 600 "$SSH_CONFIG"
+    fi
 fi
 
 ssh-keygen -t ed25519 -C "deploy-key-${HOSTNAME,,}" -f "$KEY_FILE" -N "" > /dev/null
